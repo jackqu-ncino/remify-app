@@ -26,3 +26,6 @@ yarn-debug.log*
 yarn-error.log*
 
 .vercel
+
+# Local notes with sensitive info
+info_key.txt
