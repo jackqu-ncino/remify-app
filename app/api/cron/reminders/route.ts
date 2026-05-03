@@ -51,8 +51,9 @@ function buildEmailHtml(opts: {
   note: string | null
   daysAway: number
   groupUrl: string
+  unsubscribeUrl: string
 }): string {
-  const { recipientName, groupName, label, type, month, day, year, note, daysAway, groupUrl } = opts
+  const { recipientName, groupName, label, type, month, day, year, note, daysAway, groupUrl, unsubscribeUrl } = opts
   const dateStr = `${MONTHS[month - 1]} ${day}${year ? `, ${year}` : ''}`
 
   let countdown = ''
@@ -110,7 +111,7 @@ function buildEmailHtml(opts: {
             <td style="padding:16px 32px 24px;border-top:1px solid #f3f4f6;">
               <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">
                 You're receiving this because you subscribed to <strong>${groupName}</strong> reminders.<br>
-                <a href="${groupUrl}" style="color:#a82dd6;text-decoration:none;">Manage subscription</a>
+                <a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
               </p>
             </td>
           </tr>
@@ -163,7 +164,7 @@ export async function GET(req: Request) {
       // Get subscribers for this group
       const { data: subs, error: sErr } = await db
         .from('subscribers')
-        .select('name, email')
+        .select('name, email, unsubscribe_token')
         .eq('group_id', group.id)
 
       if (sErr || !subs?.length) continue
@@ -175,16 +176,17 @@ export async function GET(req: Request) {
             to: sub.email,
             subject: `${typeEmoji(d.type)} Reminder: ${d.label} is ${days === 1 ? 'tomorrow!' : `${days} days away`}`,
             html: buildEmailHtml({
-              recipientName: sub.name,
-              groupName:     group.name,
-              label:         d.label,
-              type:          d.type,
-              month:         d.month,
-              day:           d.day,
-              year:          d.year,
-              note:          d.note,
-              daysAway:      days,
-              groupUrl:      `${appUrl}/group/${group.token}`,
+              recipientName:  sub.name,
+              groupName:      group.name,
+              label:          d.label,
+              type:           d.type,
+              month:          d.month,
+              day:            d.day,
+              year:           d.year,
+              note:           d.note,
+              daysAway:       days,
+              groupUrl:       `${appUrl}/group/${group.token}`,
+              unsubscribeUrl: `${appUrl}/unsubscribe/${sub.unsubscribe_token}`,
             }),
           })
           sent++
