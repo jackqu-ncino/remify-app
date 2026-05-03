@@ -1,16 +1,19 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Remify',
   description: 'Never miss a birthday, anniversary, or special occasion again.',
   manifest: '/manifest.json',
-  themeColor: '#a82dd6',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Remify',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#3B0764',
 }
 
 export default function RootLayout({

@@ -82,12 +82,12 @@ export async function POST(req: Request) {
     const db = supabaseAdmin()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://remify.app'
 
-    // Check free tier limit — active groups only
+    // Check free tier limit — active AND pending groups count toward the limit
     const { count, error: countErr } = await db
       .from('groups')
       .select('id', { count: 'exact', head: true })
       .eq('owner_email', email)
-      .eq('status', 'active')
+      .in('status', ['active', 'pending'])
 
     if (countErr) throw countErr
 

@@ -198,6 +198,130 @@ function AddDateModal({ token, onClose, onAdded }: {
   )
 }
 
+// ─── Edit Date Modal ──────────────────────────────────────────────────────────
+function EditDateModal({ token, date, onClose, onSaved }: {
+  token: string
+  date: DateEvent
+  onClose: () => void
+  onSaved: (updated: DateEvent) => void
+}) {
+  const [label, setLabel]     = useState(date.label)
+  const [type, setType]       = useState(date.type)
+  const [month, setMonth]     = useState(date.month)
+  const [day, setDay]         = useState(date.day)
+  const [year, setYear]       = useState(date.year ? String(date.year) : '')
+  const [note, setNote]       = useState(date.note ?? '')
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  const daysInMonth = new Date(2024, month, 0).getDate()
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!label.trim()) return
+    setLoading(true); setError('')
+    try {
+      const res = await fetch(`/api/dates/${date.id}?token=${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: label.trim(), type, month, day,
+          year: year ? parseInt(year) : null,
+          note: note.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save')
+      onSaved(data as DateEvent)
+    } catch (err: any) {
+      setError(err.message); setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-fade-in">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+          <h2 className="font-medium text-gray-900">Edit date</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">What's the occasion?</label>
+            <input
+              value={label} onChange={e => setLabel(e.target.value)}
+              placeholder="e.g. Mom's Birthday"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Type</label>
+            <select
+              value={type} onChange={e => setType(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+            >
+              {EVENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Month</label>
+              <select
+                value={month} onChange={e => { setMonth(Number(e.target.value)); setDay(1) }}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+              >
+                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m.slice(0,3)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Day</label>
+              <select
+                value={day} onChange={e => setDay(Number(e.target.value))}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+              >
+                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d =>
+                  <option key={d} value={d}>{d}</option>
+                )}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Year <span className="text-gray-300">(opt)</span></label>
+              <input
+                type="number" value={year} onChange={e => setYear(e.target.value)}
+                placeholder="2024" min="1900" max="2100"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Note <span className="text-gray-300">(optional)</span></label>
+            <input
+              value={note} onChange={e => setNote(e.target.value)}
+              placeholder="e.g. She loves sunflowers"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+            />
+          </div>
+
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+
+          <button
+            type="submit" disabled={loading}
+            className="w-full bg-brand-800 hover:bg-brand-900 disabled:opacity-60 text-white font-medium py-3 rounded-xl transition-colors text-sm"
+          >
+            {loading ? 'Saving…' : 'Save changes'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ─── Subscribe Modal ──────────────────────────────────────────────────────────
 function SubscribeModal({ token, onClose }: { token: string; onClose: () => void }) {
   const [name, setName]     = useState('')
@@ -280,10 +404,11 @@ function SubscribeModal({ token, onClose }: { token: string; onClose: () => void
 }
 
 // ─── Date Card ────────────────────────────────────────────────────────────────
-function DateCard({ event, token, onDeleted }: {
+function DateCard({ event, token, onDeleted, onEdit }: {
   event: DateEvent
   token: string
   onDeleted: () => void
+  onEdit: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const days = daysUntilNext(event.month, event.day)
@@ -321,16 +446,26 @@ function DateCard({ event, token, onDeleted }: {
         {event.note && <p className="text-gray-400 text-xs mt-0.5 truncate">{event.note}</p>}
       </div>
 
-      {/* Delete */}
-      <button
-        onClick={handleDelete} disabled={deleting}
-        className="text-gray-400 hover:text-red-400 transition-colors flex-shrink-0"
-      >
-        {deleting
-          ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
-          : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-        }
-      </button>
+      {/* Edit & Delete */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <button
+          onClick={onEdit}
+          className="text-gray-400 hover:text-brand-700 transition-colors"
+          title="Edit"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button
+          onClick={handleDelete} disabled={deleting}
+          className="text-gray-400 hover:text-red-400 transition-colors"
+          title="Delete"
+        >
+          {deleting
+            ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+            : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          }
+        </button>
+      </div>
     </div>
   )
 }
@@ -346,8 +481,9 @@ export default function GroupPage() {
   const [dates, setDates]   = useState<DateEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]   = useState('')
-  const [showAdd, setShowAdd] = useState(false)
-  const [showSub, setShowSub] = useState(false)
+  const [showAdd, setShowAdd]       = useState(false)
+  const [showSub, setShowSub]       = useState(false)
+  const [editingDate, setEditingDate] = useState<DateEvent | null>(null)
   const [copied, setCopied]   = useState(false)
   const [showVerifiedBanner, setShowVerifiedBanner] = useState(
     searchParams.get('verified') === 'true'
@@ -486,7 +622,13 @@ export default function GroupPage() {
         ) : (
           <div className="space-y-2.5 pt-1">
             {dates.map(event => (
-              <DateCard key={event.id} event={event} token={token} onDeleted={fetchData} />
+              <DateCard
+                key={event.id}
+                event={event}
+                token={token}
+                onDeleted={fetchData}
+                onEdit={() => setEditingDate(event)}
+              />
             ))}
           </div>
         )}
@@ -507,6 +649,20 @@ export default function GroupPage() {
         />
       )}
       {showSub && <SubscribeModal token={token} onClose={() => setShowSub(false)} />}
+      {editingDate && (
+        <EditDateModal
+          token={token}
+          date={editingDate}
+          onClose={() => setEditingDate(null)}
+          onSaved={(updated) => {
+            setEditingDate(null)
+            setDates(prev => {
+              const updated_list = prev.map(d => d.id === updated.id ? updated : d)
+              return updated_list.sort((a, b) => daysUntilNext(a.month, a.day) - daysUntilNext(b.month, b.day))
+            })
+          }}
+        />
+      )}
     </main>
   )
 }
