@@ -14,7 +14,7 @@ export async function GET(
   // Look up the group by verification token
   const { data: group, error } = await db
     .from('groups')
-    .select('id, token, name, owner_email, created_by, status, verification_expires_at')
+    .select('id, token, name, owner_email, created_by, status, verification_expires_at, owner_secret')
     .eq('verification_token', verificationToken)
     .single()
 
@@ -59,5 +59,5 @@ export async function GET(
       { onConflict: 'group_id,email', ignoreDuplicates: true }
     )
 
-  return NextResponse.redirect(`${appUrl}/group/${group.token}?verified=true`)
+  return NextResponse.redirect(`${appUrl}/group/${group.token}/manage/${group.owner_secret}?verified=true`)
 }

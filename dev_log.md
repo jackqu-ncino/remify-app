@@ -102,3 +102,16 @@ A chronological record of daily progress. Oldest first.
 - Added `EditDateModal` component to group page — pre-populated with existing date values, same UI as Add Date modal, calls PATCH on submit
 - Updated `DateCard` to show pencil (edit) and trash (delete) icons side by side; pencil hover is brand purple, trash hover is red
 - `GroupPage` tracks `editingDate` state; on save, card updates in-place and list re-sorts by next occurrence without a full refetch
+
+### Inline delete confirmation
+- Replaced `window.confirm()` on date card with an inline "Remove? Yes / No" prompt — no browser popup, stays on-brand
+- Trash icon click transitions the card actions to the confirmation state; "No" resets back to normal icons
+
+### Admin interface (`/admin`)
+- Built password gate — `ADMIN_SECRET` env var checked on every API call via `x-admin-secret` header; no session storage, enter each visit
+- `GET /api/admin/groups` — returns all groups with date + subscriber counts via Supabase nested count query
+- `GET /api/admin/lookup` — email lookup returning owned groups and subscribed groups for a given email
+- `DELETE /api/admin/groups/[id]` — hard delete group by id (cascades to dates and subscribers)
+- `DELETE /api/admin/subscribers` — removes a subscriber by email + group token; updates subscriber count in the groups list in-place
+- Admin page: stat cards (total, active, pending, subscribers), groups list with search by name/email, status filter tabs (All/Active/Pending), sort dropdown (newest, oldest, most dates, most subscribers, name A→Z), and email lookup with remove subscriber action
+- Added `ADMIN_SECRET` to `.env.example` and Vercel environment variables

@@ -6,13 +6,38 @@ import { Resend } from 'resend'
 
 function buildFindGroupsEmail(opts: {
   email: string
-  ownedGroups: { name: string; token: string }[]
+  ownedGroups: { name: string; token: string; owner_secret: string | null }[]
   subscribedGroups: { name: string; token: string }[]
   appUrl: string
 }): string {
   const { ownedGroups, subscribedGroups, appUrl } = opts
 
-  const groupRow = (g: { name: string; token: string }) => `
+  const ownedGroupRow = (g: { name: string; token: string; owner_secret: string | null }) => `
+    <tr>
+      <td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td>
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">${g.name}</p>
+              ${g.owner_secret ? `
+              <a href="${appUrl}/group/${g.token}/manage/${g.owner_secret}"
+                 style="display:inline-block;background:#3B0764;color:#ffffff;font-size:13px;font-weight:600;padding:8px 18px;border-radius:8px;text-decoration:none;margin-right:8px;">
+                Manage group →
+              </a>
+              <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">⚠️ Keep this link private — it gives full control over your group.</p>
+              ` : `
+              <a href="${appUrl}/group/${g.token}"
+                 style="display:inline-block;background:#3B0764;color:#ffffff;font-size:13px;font-weight:600;padding:8px 18px;border-radius:8px;text-decoration:none;">
+                Go to group →
+              </a>
+              `}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`
+
+  const subscribedGroupRow = (g: { name: string; token: string }) => `
     <tr>
       <td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">
         <table width="100%" cellpadding="0" cellspacing="0">
@@ -34,7 +59,7 @@ function buildFindGroupsEmail(opts: {
       Groups you created
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-      ${ownedGroups.map(groupRow).join('')}
+      ${ownedGroups.map(ownedGroupRow).join('')}
     </table>` : ''
 
   const subscribedSection = subscribedGroups.length > 0 ? `
@@ -42,7 +67,7 @@ function buildFindGroupsEmail(opts: {
       Groups you follow
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-      ${subscribedGroups.map(groupRow).join('')}
+      ${subscribedGroups.map(subscribedGroupRow).join('')}
     </table>` : ''
 
   return `<!DOCTYPE html>
@@ -106,7 +131,7 @@ export async function POST(req: Request) {
     // Groups this email created (active only)
     const { data: ownedRaw } = await db
       .from('groups')
-      .select('name, token')
+      .select('name, token, owner_secret')
       .eq('owner_email', normalizedEmail)
       .eq('status', 'active')
 

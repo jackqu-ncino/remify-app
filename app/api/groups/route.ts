@@ -163,6 +163,7 @@ export async function POST(req: Request) {
         created_by: creatorName.trim(),
         owner_email: email,
         status: 'pending',
+        owner_secret: randomUUID(),
         verification_token: newVerificationToken,
         verification_expires_at: newExpiresAt,
       })

@@ -58,6 +58,63 @@ function urgencyStyle(days: number): { badge: string; num: string; unit: string 
   return              { badge: 'bg-gray-100',  num: 'text-gray-600',   unit: 'text-gray-400' }
 }
 
+// ─── PWA Install Banner ───────────────────────────────────────────────────────
+function InstallBanner() {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    // Already installed as standalone PWA — don't show
+    const isStandalone =
+      ('standalone' in navigator && (navigator as any).standalone === true) ||
+      window.matchMedia('(display-mode: standalone)').matches
+
+    if (isStandalone) return
+
+    // Only show on iOS Safari (Android can use beforeinstallprompt natively)
+    const ua = navigator.userAgent
+    const isIOS = /iPhone|iPad|iPod/.test(ua)
+    const isSafari = isIOS && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua)
+    if (!isSafari) return
+
+    // Only show once — respect prior dismissal
+    if (localStorage.getItem('remify-install-dismissed')) return
+
+    setVisible(true)
+  }, [])
+
+  function dismiss() {
+    localStorage.setItem('remify-install-dismissed', '1')
+    setVisible(false)
+  }
+
+  if (!visible) return null
+
+  return (
+    <div className="bg-purple-50 border-b border-purple-100">
+      <div className="max-w-lg mx-auto px-4 py-2.5 flex items-center gap-3">
+        <div className="w-8 h-8 bg-brand-800 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 13.5S2 9.5 2 5.5C2 3.6 3.6 2 5.5 2c1.1 0 2 .6 2.5 1.4C8.5 2.6 9.4 2 10.5 2 12.4 2 14 3.6 14 5.5c0 4-6 8-6 8z"
+              stroke="white" strokeWidth="1.2" strokeLinejoin="round" fill="none"/>
+            <path d="M8 6v2l1.2 1.2" stroke="white" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-brand-900 leading-tight">Add Remify to your home screen</p>
+          <p className="text-[11px] text-purple-500 mt-0.5 flex items-center gap-0.5">
+            Tap
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="inline mx-0.5 text-purple-400"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            Share → Add to Home Screen
+          </p>
+        </div>
+        <button onClick={dismiss} className="text-purple-300 hover:text-purple-500 flex-shrink-0 p-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Heart-clock icon ────────────────────────────────────────────────────────
 function RemifyIcon({ size = 16, color = '#fff' }: { size?: number; color?: string }) {
   return (
@@ -410,13 +467,14 @@ function DateCard({ event, token, onDeleted, onEdit }: {
   onDeleted: () => void
   onEdit: () => void
 }) {
-  const [deleting, setDeleting] = useState(false)
+  const [deleting, setDeleting]           = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const days = daysUntilNext(event.month, event.day)
   const monthName = MONTHS[event.month - 1]
   const { badge, num, unit } = urgencyStyle(days)
 
   async function handleDelete() {
-    if (!confirm(`Remove "${event.label}"?`)) return
+    setConfirmingDelete(false)
     setDeleting(true)
     await fetch(`/api/dates/${event.id}?token=${token}`, { method: 'DELETE' })
     onDeleted()
@@ -448,23 +506,46 @@ function DateCard({ event, token, onDeleted, onEdit }: {
 
       {/* Edit & Delete */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          onClick={onEdit}
-          className="text-gray-400 hover:text-brand-700 transition-colors"
-          title="Edit"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </button>
-        <button
-          onClick={handleDelete} disabled={deleting}
-          className="text-gray-400 hover:text-red-400 transition-colors"
-          title="Delete"
-        >
-          {deleting
-            ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
-            : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-          }
-        </button>
+        {confirmingDelete ? (
+          // Inline confirmation
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400">Remove?</span>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-xs font-medium text-white bg-red-400 hover:bg-red-500 px-2 py-0.5 rounded-lg transition-colors"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              className="text-xs font-medium text-gray-400 hover:text-gray-600 px-2 py-0.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              No
+            </button>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={onEdit}
+              className="text-gray-400 hover:text-brand-700 transition-colors"
+              title="Edit"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              disabled={deleting}
+              className="text-gray-400 hover:text-red-400 transition-colors"
+              title="Delete"
+            >
+              {deleting
+                ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+              }
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
@@ -570,6 +651,8 @@ export default function GroupPage() {
           </button>
         </div>
       </header>
+
+      <InstallBanner />
 
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-3">
 
