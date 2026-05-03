@@ -80,15 +80,14 @@ function AddDateModal({ token, onClose, onAdded }: {
   onClose: () => void
   onAdded: (newDate: DateEvent) => void
 }) {
-  const [label, setLabel]         = useState('')
-  const [type, setType]           = useState('birthday')
-  const [month, setMonth]         = useState(1)
-  const [day, setDay]             = useState(1)
-  const [year, setYear]           = useState('')
-  const [note, setNote]           = useState('')
-  const [createdBy, setCreatedBy] = useState('')
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState('')
+  const [label, setLabel]     = useState('')
+  const [type, setType]       = useState('birthday')
+  const [month, setMonth]     = useState(1)
+  const [day, setDay]         = useState(1)
+  const [year, setYear]       = useState('')
+  const [note, setNote]       = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
 
   const daysInMonth = new Date(2024, month, 0).getDate()
 
@@ -104,7 +103,7 @@ function AddDateModal({ token, onClose, onAdded }: {
           label: label.trim(), type, month, day,
           year: year ? parseInt(year) : null,
           note: note.trim() || null,
-          createdBy: createdBy.trim(),
+          createdBy: 'group member',
         }),
       })
       const data = await res.json()
@@ -182,16 +181,6 @@ function AddDateModal({ token, onClose, onAdded }: {
               value={note} onChange={e => setNote(e.target.value)}
               placeholder="e.g. She loves sunflowers"
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Your name</label>
-            <input
-              value={createdBy} onChange={e => setCreatedBy(e.target.value)}
-              placeholder="e.g. Jack"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
-              required
             />
           </div>
 
