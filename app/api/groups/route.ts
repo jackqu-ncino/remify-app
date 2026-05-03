@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     const db = supabaseAdmin()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://remify.app'
 
-    // Check free tier limit — how many active groups does this email own?
+    // Check free tier limit — active groups only
     const { count, error: countErr } = await db
       .from('groups')
       .select('id', { count: 'exact', head: true })
@@ -101,12 +101,60 @@ export async function POST(req: Request) {
       )
     }
 
-    // Generate tokens
-    const token = randomUUID().replace(/-/g, '').slice(0, 12)
-    const verificationToken = randomUUID()
-    const verificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    // Check for an existing pending group with this email
+    const { data: existingPending } = await db
+      .from('groups')
+      .select('id, token, verification_expires_at')
+      .eq('owner_email', email)
+      .eq('status', 'pending')
+      .single()
 
-    // Create group in pending state
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    const newVerificationToken = randomUUID()
+    const newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+    if (existingPending) {
+      const isExpired = new Date(existingPending.verification_expires_at) < new Date()
+
+      if (isExpired) {
+        // Delete the stale pending group and fall through to create a fresh one
+        await db.from('groups').delete().eq('id', existingPending.id)
+      } else {
+        // Valid pending group — update the name and resend with a fresh token + expiry
+        const { data: updated, error: updateErr } = await db
+          .from('groups')
+          .update({
+            name: name.trim(),
+            created_by: creatorName.trim(),
+            verification_token: newVerificationToken,
+            verification_expires_at: newExpiresAt,
+          })
+          .eq('id', existingPending.id)
+          .select()
+          .single()
+
+        if (updateErr) throw updateErr
+
+        const verifyUrl = `${appUrl}/api/verify/${newVerificationToken}`
+        await resend.emails.send({
+          from: `Remify <${process.env.RESEND_FROM_EMAIL ?? 'reminders@remify.app'}>`,
+          to: email,
+          subject: `Activate your Remify group: ${name.trim()}`,
+          html: buildVerificationEmail({
+            creatorName: creatorName.trim(),
+            groupName: name.trim(),
+            verifyUrl,
+          }),
+        })
+
+        return NextResponse.json({ token: updated.token, id: updated.id, pending: true })
+      }
+    }
+
+    // Create a brand-new group in pending state
+    const token = randomUUID().replace(/-/g, '').slice(0, 12)
+    const verifyUrl = `${appUrl}/api/verify/${newVerificationToken}`
+
     const { data, error } = await db
       .from('groups')
       .insert({
@@ -115,17 +163,13 @@ export async function POST(req: Request) {
         created_by: creatorName.trim(),
         owner_email: email,
         status: 'pending',
-        verification_token: verificationToken,
-        verification_expires_at: verificationExpiresAt,
+        verification_token: newVerificationToken,
+        verification_expires_at: newExpiresAt,
       })
       .select()
       .single()
 
     if (error) throw error
-
-    // Send verification email
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    const verifyUrl = `${appUrl}/api/verify/${verificationToken}`
 
     await resend.emails.send({
       from: `Remify <${process.env.RESEND_FROM_EMAIL ?? 'reminders@remify.app'}>`,
