@@ -76,12 +76,12 @@ function buildEmailHtml(opts: {
         <table width="100%" style="max-width:480px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,0.08);">
           <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#a82dd6,#7c3aed);padding:32px 32px 24px;">
-              <p style="margin:0;font-size:32px;">${typeEmoji(type)}</p>
-              <h1 style="margin:12px 0 0;color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">
+            <td style="background:#3B0764;padding:32px 32px 24px;">
+              <p style="margin:0 0 12px;font-size:32px;line-height:1;">${typeEmoji(type)}</p>
+              <h1 style="margin:0 0 6px;color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">
                 ${label}
               </h1>
-              <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">
+              <p style="margin:0;color:rgba(255,255,255,0.7);font-size:14px;">
                 ${typeLabel(type)} · ${dateStr}
               </p>
             </td>
@@ -99,9 +99,9 @@ function buildEmailHtml(opts: {
                 <p style="margin:0;color:#6b21a8;font-size:14px;font-style:italic;">"${note}"</p>
               </div>` : ''}
               <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">
-                From the <strong>${groupName}</strong> group
+                From <strong>${groupName}</strong>
               </p>
-              <a href="${groupUrl}" style="display:inline-block;background:#a82dd6;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;">
+              <a href="${groupUrl}" style="display:inline-block;background:#3B0764;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;">
                 View all dates →
               </a>
             </td>

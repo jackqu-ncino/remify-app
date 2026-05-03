@@ -24,6 +24,16 @@ Currently users can only add or delete dates — there's no way to edit an exist
 ### Invite members by email
 Right now the only way to share a group is to copy/send the group link manually. A built-in "invite by email" flow would lower the friction significantly for less tech-savvy users.
 
+### Admin interface
+A password-protected admin page at `/admin` for internal use. Useful for monitoring the app's health, managing users and groups, and handling support issues without going directly into Supabase. Possible capabilities:
+- View all groups (active, pending, date counts, subscriber counts)
+- View and manage subscribers (look up by email, manually remove)
+- Trigger the reminder cron manually for testing
+- View recent email activity / errors
+- Soft-delete or deactivate problematic groups
+
+Access should be restricted to a hardcoded admin secret (env var) or a small allowlist of emails, not a full auth system.
+
 ---
 
 ## Bugs / Minor Issues

@@ -26,12 +26,12 @@ function buildVerificationEmail(opts: {
       <td align="center">
         <table width="100%" style="max-width:480px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,0.08);">
           <tr>
-            <td style="background:linear-gradient(135deg,#a82dd6,#7c3aed);padding:32px 32px 24px;">
-              <p style="margin:0;font-size:32px;">🎉</p>
-              <h1 style="margin:12px 0 0;color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">
+            <td style="background:#3B0764;padding:32px 32px 24px;">
+              <img src="https://remify.app/icon-email.png" width="40" height="40" alt="Remify" style="display:block;margin-bottom:16px;border-radius:10px;">
+              <h1 style="margin:0 0 6px;color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">
                 Confirm your group
               </h1>
-              <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">
+              <p style="margin:0;color:rgba(255,255,255,0.7);font-size:14px;">
                 One click to activate <strong>${groupName}</strong>
               </p>
             </td>

@@ -14,16 +14,18 @@ function buildFindGroupsEmail(opts: {
 
   const groupRow = (g: { name: string; token: string }) => `
     <tr>
-      <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-        <a href="${appUrl}/group/${g.token}"
-           style="font-size:15px;font-weight:600;color:#3B0764;text-decoration:none;">
-          ${g.name}
-        </a>
-        <br>
-        <a href="${appUrl}/group/${g.token}"
-           style="font-size:12px;color:#a82dd6;text-decoration:none;">
-          ${appUrl}/group/${g.token} →
-        </a>
+      <td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td>
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#111827;">${g.name}</p>
+              <a href="${appUrl}/group/${g.token}"
+                 style="display:inline-block;background:#3B0764;color:#ffffff;font-size:13px;font-weight:600;padding:8px 18px;border-radius:8px;text-decoration:none;">
+                Go to group →
+              </a>
+            </td>
+          </tr>
+        </table>
       </td>
     </tr>`
 
@@ -57,11 +59,11 @@ function buildFindGroupsEmail(opts: {
         <table width="100%" style="max-width:480px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,0.08);">
           <tr>
             <td style="background:#3B0764;padding:32px 32px 24px;">
-              <p style="margin:0;font-size:32px;">🔗</p>
-              <h1 style="margin:12px 0 0;color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">
+              <img src="https://remify.app/icon-email.png" width="40" height="40" alt="Remify" style="display:block;margin-bottom:16px;border-radius:10px;">
+              <h1 style="margin:0 0 6px;color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">
                 Your Remify groups
               </h1>
-              <p style="margin:6px 0 0;color:rgba(255,255,255,0.7);font-size:14px;">
+              <p style="margin:0;color:rgba(255,255,255,0.7);font-size:14px;">
                 Here are all the groups linked to your email
               </p>
             </td>
@@ -78,7 +80,7 @@ function buildFindGroupsEmail(opts: {
           <tr>
             <td style="padding:16px 32px 24px;border-top:1px solid #f3f4f6;">
               <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">
-                remify.app · Never miss what matters most
+                You received this because you requested it at remify.app
               </p>
             </td>
           </tr>
