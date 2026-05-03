@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { differenceInDays, addYears, isBefore, startOfDay } from 'date-fns'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ function AddDateModal({ token, onClose, onAdded }: {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!label.trim() || !createdBy.trim()) return
+    if (!label.trim()) return
     setLoading(true); setError('')
     try {
       const res = await fetch(`/api/groups/${token}/dates`, {
@@ -324,7 +324,7 @@ function DateCard({ event, token, onDeleted }: {
       {/* Delete */}
       <button
         onClick={handleDelete} disabled={deleting}
-        className="text-gray-200 hover:text-red-400 transition-colors flex-shrink-0"
+        className="text-gray-400 hover:text-red-400 transition-colors flex-shrink-0"
       >
         {deleting
           ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
@@ -339,6 +339,7 @@ function DateCard({ event, token, onDeleted }: {
 export default function GroupPage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const token = params.token as string
 
   const [group, setGroup]   = useState<Group | null>(null)
@@ -351,6 +352,13 @@ export default function GroupPage() {
   const [showVerifiedBanner, setShowVerifiedBanner] = useState(
     searchParams.get('verified') === 'true'
   )
+
+  // Strip ?verified=true from URL so refresh doesn't re-show the banner
+  useEffect(() => {
+    if (searchParams.get('verified') === 'true') {
+      router.replace(`/group/${token}`, { scroll: false })
+    }
+  }, [])
 
   const fetchData = useCallback(async () => {
     try {
@@ -451,18 +459,18 @@ export default function GroupPage() {
         {/* Action row */}
         <div className="flex gap-3">
           <button
-            onClick={() => setShowSub(true)}
-            className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-            Get reminders
-          </button>
-          <button
             onClick={() => setShowAdd(true)}
             className="flex-1 flex items-center justify-center gap-2 bg-brand-800 hover:bg-brand-900 rounded-xl py-3 text-sm font-medium text-white shadow-sm transition-colors"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 4v16m8-8H4"/></svg>
             Add date
+          </button>
+          <button
+            onClick={() => setShowSub(true)}
+            className="flex items-center justify-center gap-1.5 bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-100 shadow-sm transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4e108a" strokeWidth="1.5"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            Email me
           </button>
         </div>
 
