@@ -107,7 +107,7 @@ export default function Home() {
           <h2 className="font-medium text-gray-900 text-[15px] mb-4">Create your group</h2>
           <form onSubmit={handleCreate} className="space-y-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Group name</label>
+              <label className="block text-[13px] text-gray-600 mb-1">Group name</label>
               <input
                 type="text"
                 value={groupName}
@@ -118,7 +118,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Your name</label>
+              <label className="block text-[13px] text-gray-600 mb-1">Your name</label>
               <input
                 type="text"
                 value={yourName}
@@ -129,7 +129,7 @@ export default function Home() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Your email</label>
+              <label className="block text-[13px] text-gray-600 mb-1">Your email</label>
               <input
                 type="email"
                 value={ownerEmail}
