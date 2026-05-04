@@ -3,6 +3,17 @@
 import { useState, useMemo } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type TierRow = {
+  id: string
+  email: string
+  tier: string
+  group_limit: number | null
+  notes: string | null
+  created_at: string
+}
+
+type AdminTab = 'groups' | 'tiers'
+
 type GroupRow = {
   id: string
   name: string
@@ -32,6 +43,9 @@ export default function AdminPage() {
   const [authError, setAuthError]     = useState('')
   const [authLoading, setAuthLoading] = useState(false)
 
+  // Tab
+  const [activeTab, setActiveTab] = useState<AdminTab>('groups')
+
   // Groups
   const [groups, setGroups]           = useState<GroupRow[]>([])
   const [search, setSearch]           = useState('')
@@ -49,6 +63,20 @@ export default function AdminPage() {
 
   // Remove subscriber
   const [removingSubscriber, setRemovingSubscriber] = useState<{ email: string; token: string } | null>(null)
+
+  // Tiers
+  const [tiers, setTiers]               = useState<TierRow[]>([])
+  const [tiersLoading, setTiersLoading] = useState(false)
+  const [tiersError, setTiersError]     = useState('')
+  const [newTierEmail, setNewTierEmail] = useState('')
+  const [newTierTier, setNewTierTier]   = useState('beta')
+  const [newTierLimit, setNewTierLimit] = useState<string>('')
+  const [newTierNotes, setNewTierNotes] = useState('')
+  const [addingTier, setAddingTier]     = useState(false)
+  const [addTierError, setAddTierError] = useState('')
+  const [deletingTierId, setDeletingTierId] = useState<string | null>(null)
+  const [editingTier, setEditingTier]   = useState<TierRow | null>(null)
+  const [savingTierId, setSavingTierId] = useState<string | null>(null)
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
@@ -72,6 +100,96 @@ export default function AdminPage() {
       setAuthError(err.message)
     } finally {
       setAuthLoading(false)
+    }
+  }
+
+  // ── Tiers ───────────────────────────────────────────────────────────────────
+  async function loadTiers(s: string) {
+    setTiersLoading(true)
+    setTiersError('')
+    try {
+      const res = await fetch('/api/admin/tiers', { headers: { 'x-admin-secret': s } })
+      if (!res.ok) throw new Error('Failed to load tiers')
+      setTiers(await res.json())
+    } catch (err: any) {
+      setTiersError(err.message)
+    } finally {
+      setTiersLoading(false)
+    }
+  }
+
+  async function handleTabChange(tab: AdminTab) {
+    setActiveTab(tab)
+    if (tab === 'tiers' && tiers.length === 0) await loadTiers(secret)
+  }
+
+  async function handleAddTier(e: React.FormEvent) {
+    e.preventDefault()
+    setAddingTier(true)
+    setAddTierError('')
+    try {
+      const res = await fetch('/api/admin/tiers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+        body: JSON.stringify({
+          email: newTierEmail.trim(),
+          tier: newTierTier,
+          group_limit: newTierLimit === '' ? null : parseInt(newTierLimit, 10),
+          notes: newTierNotes.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to add tier')
+      setTiers(prev => [data, ...prev])
+      setNewTierEmail('')
+      setNewTierTier('beta')
+      setNewTierLimit('')
+      setNewTierNotes('')
+    } catch (err: any) {
+      setAddTierError(err.message)
+    } finally {
+      setAddingTier(false)
+    }
+  }
+
+  async function handleSaveTierEdit() {
+    if (!editingTier) return
+    setSavingTierId(editingTier.id)
+    try {
+      const res = await fetch(`/api/admin/tiers/${editingTier.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+        body: JSON.stringify({
+          tier: editingTier.tier,
+          group_limit: editingTier.group_limit,
+          notes: editingTier.notes,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Update failed')
+      setTiers(prev => prev.map(t => t.id === data.id ? data : t))
+      setEditingTier(null)
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setSavingTierId(null)
+    }
+  }
+
+  async function handleDeleteTier(id: string, email: string) {
+    if (!confirm(`Remove tier for ${email}? They'll revert to the free tier limit.`)) return
+    setDeletingTierId(id)
+    try {
+      const res = await fetch(`/api/admin/tiers/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-secret': secret },
+      })
+      if (!res.ok) throw new Error('Delete failed')
+      setTiers(prev => prev.filter(t => t.id !== id))
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setDeletingTierId(null)
     }
   }
 
@@ -229,7 +347,24 @@ export default function AdminPage() {
 
       <div className="max-w-4xl mx-auto px-4 pt-6 space-y-6">
 
-        {/* Stats */}
+        {/* Tab switcher */}
+        <div className="flex gap-2">
+          {(['groups', 'tiers'] as AdminTab[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => handleTabChange(tab)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === tab
+                  ? 'bg-brand-800 text-white'
+                  : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Stats — always visible */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Total groups',  value: stats.total,       color: 'text-gray-900' },
@@ -243,6 +378,8 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+
+        {activeTab === 'groups' && (<>
 
         {/* Groups section */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -347,6 +484,7 @@ export default function AdminPage() {
         {/* Email lookup */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h2 className="font-medium text-gray-900 mb-3">Email lookup</h2>
+
           <form onSubmit={handleLookup} className="flex gap-2">
             <input
               type="email"
@@ -436,6 +574,181 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        </>)}
+
+        {/* ── Tiers tab ─────────────────────────────────────────────────────── */}
+        {activeTab === 'tiers' && (
+          <div className="space-y-5">
+
+            {/* Add tier form */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="font-medium text-gray-900 mb-4">Add email override</h2>
+              <form onSubmit={handleAddTier} className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={newTierEmail}
+                    onChange={e => setNewTierEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                    required
+                  />
+                  <select
+                    value={newTierTier}
+                    onChange={e => setNewTierTier(e.target.value)}
+                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                  >
+                    <option value="beta">Beta</option>
+                    <option value="basic">Basic</option>
+                    <option value="premium">Premium</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={newTierLimit}
+                    onChange={e => setNewTierLimit(e.target.value)}
+                    placeholder="Group limit (blank = unlimited)"
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={newTierNotes}
+                  onChange={e => setNewTierNotes(e.target.value)}
+                  placeholder="Notes (optional — e.g. pickleball buddy, beta tester)"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                />
+                {addTierError && <p className="text-red-500 text-sm">{addTierError}</p>}
+                <button
+                  type="submit"
+                  disabled={addingTier}
+                  className="bg-brand-800 hover:bg-brand-900 disabled:opacity-60 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  {addingTier ? 'Adding…' : 'Add override'}
+                </button>
+              </form>
+            </div>
+
+            {/* Tiers list */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="font-medium text-gray-900">Email overrides</h2>
+                <span className="text-xs text-gray-400">{tiers.length} entr{tiers.length !== 1 ? 'ies' : 'y'}</span>
+              </div>
+
+              {tiersLoading ? (
+                <p className="text-gray-400 text-sm text-center py-10">Loading…</p>
+              ) : tiersError ? (
+                <p className="text-red-400 text-sm text-center py-10">{tiersError}</p>
+              ) : tiers.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-10">No overrides yet.</p>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {tiers.map(t => (
+                    <div key={t.id} className="px-5 py-3.5">
+                      {editingTier?.id === t.id ? (
+                        /* Inline edit row */
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-800">{t.email}</p>
+                          <div className="flex gap-2">
+                            <select
+                              value={editingTier.tier}
+                              onChange={e => setEditingTier({ ...editingTier, tier: e.target.value })}
+                              className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                            >
+                              <option value="beta">Beta</option>
+                              <option value="basic">Basic</option>
+                              <option value="premium">Premium</option>
+                            </select>
+                            <input
+                              type="number"
+                              min={1}
+                              value={editingTier.group_limit ?? ''}
+                              onChange={e => setEditingTier({ ...editingTier, group_limit: e.target.value === '' ? null : parseInt(e.target.value, 10) })}
+                              placeholder="Limit (blank = unlimited)"
+                              className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            value={editingTier.notes ?? ''}
+                            onChange={e => setEditingTier({ ...editingTier, notes: e.target.value })}
+                            placeholder="Notes"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSaveTierEdit}
+                              disabled={savingTierId === t.id}
+                              className="bg-brand-800 hover:bg-brand-900 disabled:opacity-60 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                              {savingTierId === t.id ? 'Saving…' : 'Save'}
+                            </button>
+                            <button
+                              onClick={() => setEditingTier(null)}
+                              className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Read row */
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium text-gray-900">{t.email}</span>
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                                t.tier === 'beta'    ? 'bg-purple-50 text-purple-700' :
+                                t.tier === 'basic'   ? 'bg-blue-50 text-blue-700' :
+                                                       'bg-amber-50 text-amber-700'
+                              }`}>
+                                {t.tier}
+                              </span>
+                              <span className="text-[10px] text-gray-400">
+                                {t.group_limit === null ? 'unlimited groups' : `${t.group_limit} group${t.group_limit !== 1 ? 's' : ''}`}
+                              </span>
+                            </div>
+                            {t.notes && <p className="text-xs text-gray-400 mt-0.5">{t.notes}</p>}
+                            <p className="text-xs text-gray-300 mt-0.5">
+                              Added {new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                            <button
+                              onClick={() => setEditingTier(t)}
+                              className="text-gray-300 hover:text-brand-800 transition-colors"
+                              title="Edit"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTier(t.id, t.email)}
+                              disabled={deletingTierId === t.id}
+                              className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40"
+                              title="Remove"
+                            >
+                              {deletingTierId === t.id
+                                ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+                                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+                              }
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
     </main>

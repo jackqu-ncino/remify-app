@@ -171,8 +171,9 @@ function AddDateModal({ token, onClose, onAdded }: {
 }
 
 // ─── Edit Date Modal ──────────────────────────────────────────────────────────
-function EditDateModal({ token, date, onClose, onSaved }: {
+function EditDateModal({ token, ownerSecret, date, onClose, onSaved }: {
   token: string
+  ownerSecret: string
   date: DateEvent
   onClose: () => void
   onSaved: (updated: DateEvent) => void
@@ -193,7 +194,7 @@ function EditDateModal({ token, date, onClose, onSaved }: {
     if (!label.trim()) return
     setLoading(true); setError('')
     try {
-      const res = await fetch(`/api/dates/${date.id}?token=${token}`, {
+      const res = await fetch(`/api/dates/${date.id}?token=${token}&ownerSecret=${ownerSecret}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -270,9 +271,10 @@ function EditDateModal({ token, date, onClose, onSaved }: {
 }
 
 // ─── Date Card ────────────────────────────────────────────────────────────────
-function DateCard({ event, token, onDeleted, onEdit }: {
+function DateCard({ event, token, ownerSecret, onDeleted, onEdit }: {
   event: DateEvent
   token: string
+  ownerSecret: string
   onDeleted: () => void
   onEdit: () => void
 }) {
@@ -285,7 +287,7 @@ function DateCard({ event, token, onDeleted, onEdit }: {
   async function handleDelete() {
     setConfirmingDelete(false)
     setDeleting(true)
-    await fetch(`/api/dates/${event.id}?token=${token}`, { method: 'DELETE' })
+    await fetch(`/api/dates/${event.id}?token=${token}&ownerSecret=${ownerSecret}`, { method: 'DELETE' })
     onDeleted()
   }
 
@@ -494,6 +496,7 @@ export default function ManagePage() {
                 key={event.id}
                 event={event}
                 token={token}
+                ownerSecret={ownerSecret}
                 onDeleted={fetchData}
                 onEdit={() => setEditingDate(event)}
               />
@@ -553,6 +556,7 @@ export default function ManagePage() {
       {editingDate && (
         <EditDateModal
           token={token}
+          ownerSecret={ownerSecret}
           date={editingDate}
           onClose={() => setEditingDate(null)}
           onSaved={(updated) => {

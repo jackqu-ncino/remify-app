@@ -92,6 +92,32 @@ A chronological record of daily progress. Oldest first.
 
 ---
 
+## Session 7 — May 3, 2026
+
+### Date ownership
+- Supabase migration: `ALTER TABLE dates ADD COLUMN created_by_email text`
+- `POST /api/groups/[token]/dates`: now accepts and stores `created_by_email`
+- `PATCH /DELETE /api/dates/[id]`: ownership enforced server-side — allow if `ownerSecret` query param matches group's `owner_secret` (owner bypass), or `created_by_email` matches DB row (subscriber). Both the public page and manage page updated accordingly.
+- Manage page (`/group/[token]/manage/[ownerSecret]`): all edit/delete calls now pass `ownerSecret` in the URL — owner always has full access.
+- Public group page:
+  - `AddDateModal` is now two-step: if no email in localStorage, prompts for email first ("Who are you?"), saves to `localStorage` key `remify-subscriber-email`, then shows the date form. If email already stored, skips straight to date form.
+  - `SubscribeModal`: pre-fills email from localStorage and locks the field (shows "locked" badge). On successful subscribe, updates localStorage — handles typo correction naturally.
+  - `DateCard`: edit/delete icons only rendered when `canEdit` is true (`created_by_email` matches localStorage email). Subscribers see icons only on their own dates.
+  - PATCH/DELETE calls from public page pass `created_by_email` from localStorage for server-side verification.
+- Note: file writes to paths containing `[brackets]` silently truncate on Windows — worked around using Python `pathlib.write_text()` in bash for those files going forward.
+
+---
+
+## Session 6 — May 3, 2026
+
+### Email tier overrides (beta access + future paid tiers)
+- Supabase migration: created `email_tiers` table — `id`, `email` (unique), `tier` (text), `group_limit` (int, nullable = unlimited), `notes`, `created_at`
+- Updated `POST /api/groups` free tier check: looks up `email_tiers` first; uses that `group_limit` if found (null = unlimited), falls back to `FREE_TIER_LIMIT = 1` for everyone else
+- Built `GET/POST /api/admin/tiers` and `PATCH/DELETE /api/admin/tiers/[id]` — all guarded by `x-admin-secret`
+- Added **Tiers tab** to `/admin` page with: add-override form (email, tier dropdown, group limit, notes), list of all overrides with inline edit and remove, tier badges colour-coded by type (beta = purple, basic = blue, premium = amber)
+
+---
+
 ## Session 4 — May 3, 2026
 
 ### Testing infrastructure fix
@@ -115,3 +141,45 @@ A chronological record of daily progress. Oldest first.
 - `DELETE /api/admin/subscribers` — removes a subscriber by email + group token; updates subscriber count in the groups list in-place
 - Admin page: stat cards (total, active, pending, subscribers), groups list with search by name/email, status filter tabs (All/Active/Pending), sort dropdown (newest, oldest, most dates, most subscribers, name A→Z), and email lookup with remove subscriber action
 - Added `ADMIN_SECRET` to `.env.example` and Vercel environment variables
+
+### Owner manage page (Approach B — separate URL)
+- Added `owner_secret UUID` column to `groups` table via Supabase migration (`gen_random_uuid()` default)
+- New groups get `owner_secret: randomUUID()` at creation in `POST /api/groups`
+- Built `GET /api/groups/[token]/owner` — verifies `ownerSecret` query param, returns group + dates
+- Built `DELETE /api/groups/[token]/owner` — verifies `ownerSecret` in body, hard deletes group (cascades to dates + subscribers)
+- Updated verify route to redirect to `/group/[token]/manage/[ownerSecret]?verified=true` on first activation
+- Updated find-groups email: owned groups now show "Manage group →" link (with `owner_secret` in URL) plus ⚠️ "Keep this link private" note; subscribed groups show regular "Go to group →"
+- Built `/group/[token]/manage/[ownerSecret]` page — owner-only view with:
+  - Persistent amber warning banner: "Owner view — keep this URL private. It gives full control over your group."
+  - "Public view" button in header (opens public page in new tab)
+  - Green verified banner on first arrival (`?verified=true`), auto-dismissed and URL cleaned
+  - Full date management: Add, Edit (inline modal), Delete (inline confirm) — same UI as public page
+  - Danger zone: "Delete this group" with inline "Are you sure? Yes, delete / Cancel" confirmation → redirects home on delete
+
+### PWA support
+- Generated `icon-180.png`, `icon-192.png`, `icon-512.png` from `icon-email.png` source using cairosvg — faithfully reproduces the outlined heart + clock hands design at larger sizes
+- Updated `public/manifest.json`: corrected `theme_color` from `#a82dd6` → `#3B0764`
+- Updated `app/layout.tsx`: `apple-touch-icon` now points to `icon-180.png` (correct Apple size)
+- Built `InstallBanner` component on public group page:
+  - Shows only on iOS Safari (detected via user agent — excludes Chrome, Firefox, Edge iOS)
+  - Hidden if already running as standalone PWA (`navigator.standalone === true` or `display-mode: standalone`)
+  - Dismissed permanently via `localStorage` key `remify-install-dismissed`
+  - Instructions: "Tap Share → Add to Home Screen" with inline share icon
+  - Android users get native browser install prompt automatically via manifest — no banner needed
+
+---
+
+## Session 5 — May 3, 2026
+
+### Design discussion: date ownership model
+- Decided the public group page should not be fully read-only — subscribers should be able to contribute and manage their own dates
+- Agreed ownership model:
+  1. **Creator (owner)** — full access via manage URL: add, edit, delete any date, delete the group
+  2. **Subscriber** — can add, edit, and delete their own dates only; cannot touch other subscribers' dates
+- Implementation approach agreed:
+  - Add `created_by_email text` column to `dates` table (Supabase migration)
+  - Store subscriber email in `localStorage` (`remify-subscriber-email`) when they subscribe
+  - Public page reads localStorage to gate edit/delete icons — only show on dates where `created_by_email` matches
+  - API routes (`PATCH`/`DELETE` on dates) must also enforce ownership server-side (localStorage is UI-only and spoofable)
+  - Acknowledged tradeoff: localStorage identity is not cryptographically secure, but acceptable for a trusted family/friends app
+- **Not yet built** — deferred to next session

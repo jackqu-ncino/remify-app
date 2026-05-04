@@ -9,12 +9,14 @@ export async function PATCH(
 ) {
   try {
     const { searchParams } = new URL(req.url)
-    const token = searchParams.get('token')
+    const token       = searchParams.get('token')
+    const ownerSecret = searchParams.get('ownerSecret')
+
     if (!token) {
       return NextResponse.json({ error: 'Missing group token' }, { status: 400 })
     }
 
-    const { label, type, month, day, year, note } = await req.json()
+    const { label, type, month, day, year, note, created_by_email } = await req.json()
 
     if (!label?.trim() || !month || !day) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -30,7 +32,7 @@ export async function PATCH(
 
     const { data: date, error: dErr } = await db
       .from('dates')
-      .select('id, group_id')
+      .select('id, group_id, created_by_email')
       .eq('id', params.id)
       .single()
 
@@ -40,12 +42,21 @@ export async function PATCH(
 
     const { data: group, error: gErr } = await db
       .from('groups')
-      .select('id')
+      .select('id, owner_secret')
       .eq('token', token)
       .eq('id', date.group_id)
       .single()
 
     if (gErr || !group) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    const isOwner      = ownerSecret && ownerSecret === group.owner_secret
+    const isSubscriber = created_by_email &&
+                         date.created_by_email &&
+                         created_by_email.toLowerCase() === date.created_by_email.toLowerCase()
+
+    if (!isOwner && !isSubscriber) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -78,17 +89,19 @@ export async function DELETE(
 ) {
   try {
     const { searchParams } = new URL(req.url)
-    const token = searchParams.get('token')
+    const token            = searchParams.get('token')
+    const ownerSecret      = searchParams.get('ownerSecret')
+    const created_by_email = searchParams.get('created_by_email')
+
     if (!token) {
       return NextResponse.json({ error: 'Missing group token' }, { status: 400 })
     }
 
     const db = supabaseAdmin()
 
-    // Verify the date belongs to this group (security check)
     const { data: date, error: dErr } = await db
       .from('dates')
-      .select('id, group_id')
+      .select('id, group_id, created_by_email')
       .eq('id', params.id)
       .single()
 
@@ -98,12 +111,21 @@ export async function DELETE(
 
     const { data: group, error: gErr } = await db
       .from('groups')
-      .select('id')
+      .select('id, owner_secret')
       .eq('token', token)
       .eq('id', date.group_id)
       .single()
 
     if (gErr || !group) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    const isOwner      = ownerSecret && ownerSecret === group.owner_secret
+    const isSubscriber = created_by_email &&
+                         date.created_by_email &&
+                         created_by_email.toLowerCase() === date.created_by_email.toLowerCase()
+
+    if (!isOwner && !isSubscriber) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

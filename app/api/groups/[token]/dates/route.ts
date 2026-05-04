@@ -8,9 +8,9 @@ export async function POST(
   { params }: { params: { token: string } }
 ) {
   try {
-    const { label, type, month, day, year, note, createdBy } = await req.json()
+    const { label, type, month, day, year, note, createdBy, created_by_email } = await req.json()
 
-    if (!label?.trim() || !month || !day || !createdBy?.trim()) {
+    if (!label?.trim() || !month || !day) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
     if (month < 1 || month > 12) {
@@ -22,7 +22,6 @@ export async function POST(
 
     const db = supabaseAdmin()
 
-    // Look up the group
     const { data: group, error: gErr } = await db
       .from('groups')
       .select('id')
@@ -36,14 +35,15 @@ export async function POST(
     const { data, error } = await db
       .from('dates')
       .insert({
-        group_id:   group.id,
-        label:      label.trim(),
-        type:       type || 'other',
-        month:      Number(month),
-        day:        Number(day),
-        year:       year ? Number(year) : null,
-        note:       note?.trim() || null,
-        created_by: createdBy.trim(),
+        group_id:         group.id,
+        label:            label.trim(),
+        type:             type || 'other',
+        month:            Number(month),
+        day:              Number(day),
+        year:             year ? Number(year) : null,
+        note:             note?.trim() || null,
+        created_by:       createdBy?.trim() || 'group member',
+        created_by_email: created_by_email?.trim().toLowerCase() || null,
       })
       .select()
       .single()

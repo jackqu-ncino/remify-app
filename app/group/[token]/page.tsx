@@ -14,6 +14,7 @@ type DateEvent = {
   type: string
   note: string | null
   created_by: string
+  created_by_email: string | null
 }
 
 type Group = {
@@ -132,11 +133,16 @@ function RemifyIcon({ size = 16, color = '#fff' }: { size?: number; color?: stri
 }
 
 // ─── Add Date Modal ───────────────────────────────────────────────────────────
-function AddDateModal({ token, onClose, onAdded }: {
+function AddDateModal({ token, initialEmail, onClose, onAdded, onEmailSaved }: {
   token: string
+  initialEmail: string
   onClose: () => void
   onAdded: (newDate: DateEvent) => void
+  onEmailSaved: (email: string) => void
 }) {
+  // Step 1 = email capture, Step 2 = date form
+  const [step, setStep]       = useState<'email' | 'date'>(initialEmail ? 'date' : 'email')
+  const [email, setEmail]     = useState(initialEmail)
   const [label, setLabel]     = useState('')
   const [type, setType]       = useState('birthday')
   const [month, setMonth]     = useState(1)
@@ -147,6 +153,14 @@ function AddDateModal({ token, onClose, onAdded }: {
   const [error, setError]     = useState('')
 
   const daysInMonth = new Date(2024, month, 0).getDate()
+
+  function handleEmailNext(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = email.trim().toLowerCase()
+    localStorage.setItem('remify-subscriber-email', trimmed)
+    onEmailSaved(trimmed)
+    setStep('date')
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -160,7 +174,7 @@ function AddDateModal({ token, onClose, onAdded }: {
           label: label.trim(), type, month, day,
           year: year ? parseInt(year) : null,
           note: note.trim() || null,
-          createdBy: 'group member',
+          created_by_email: email.trim().toLowerCase(),
         }),
       })
       const data = await res.json()
@@ -175,90 +189,121 @@ function AddDateModal({ token, onClose, onAdded }: {
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-fade-in">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
-          <h2 className="font-medium text-gray-900">Add important date</h2>
+          <h2 className="font-medium text-gray-900">
+            {step === 'email' ? 'First, who are you?' : 'Add important date'}
+          </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">What's the occasion?</label>
-            <input
-              value={label} onChange={e => setLabel(e.target.value)}
-              placeholder="e.g. Mom's Birthday"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
-              required
-            />
-          </div>
 
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Type</label>
-            <select
-              value={type} onChange={e => setType(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
-            >
-              {EVENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
+        {step === 'email' ? (
+          <form onSubmit={handleEmailNext} className="p-5 space-y-4">
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Enter your email so you can manage this date later. This will also be used if you want to get reminder emails.
+            </p>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Month</label>
-              <select
-                value={month} onChange={e => { setMonth(Number(e.target.value)); setDay(1) }}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
-              >
-                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m.slice(0,3)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Day</label>
-              <select
-                value={day} onChange={e => setDay(Number(e.target.value))}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
-              >
-                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d =>
-                  <option key={d} value={d}>{d}</option>
-                )}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Year <span className="text-gray-300">(opt)</span></label>
+              <label className="block text-xs text-gray-500 mb-1">Your email</label>
               <input
-                type="number" value={year} onChange={e => setYear(e.target.value)}
-                placeholder="2024" min="1900" max="2100"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                autoFocus
+                required
               />
             </div>
-          </div>
+            <button
+              type="submit"
+              className="w-full bg-brand-800 hover:bg-brand-900 text-white font-medium py-3 rounded-xl transition-colors text-sm"
+            >
+              Continue
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">What's the occasion?</label>
+              <input
+                value={label} onChange={e => setLabel(e.target.value)}
+                placeholder="e.g. Mom's Birthday"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                autoFocus
+                required
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Note <span className="text-gray-300">(optional)</span></label>
-            <input
-              value={note} onChange={e => setNote(e.target.value)}
-              placeholder="e.g. She loves sunflowers"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
-            />
-          </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Type</label>
+              <select
+                value={type} onChange={e => setType(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+              >
+                {EVENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Month</label>
+                <select
+                  value={month} onChange={e => { setMonth(Number(e.target.value)); setDay(1) }}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                >
+                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m.slice(0,3)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Day</label>
+                <select
+                  value={day} onChange={e => setDay(Number(e.target.value))}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                >
+                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d =>
+                    <option key={d} value={d}>{d}</option>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Year <span className="text-gray-300">(opt)</span></label>
+                <input
+                  type="number" value={year} onChange={e => setYear(e.target.value)}
+                  placeholder="2024" min="1900" max="2100"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                />
+              </div>
+            </div>
 
-          <button
-            type="submit" disabled={loading}
-            className="w-full bg-brand-800 hover:bg-brand-900 disabled:opacity-60 text-white font-medium py-3 rounded-xl transition-colors text-sm"
-          >
-            {loading ? 'Saving…' : 'Add date'}
-          </button>
-        </form>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Note <span className="text-gray-300">(optional)</span></label>
+              <input
+                value={note} onChange={e => setNote(e.target.value)}
+                placeholder="e.g. She loves sunflowers"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+              />
+            </div>
+
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+
+            <button
+              type="submit" disabled={loading}
+              className="w-full bg-brand-800 hover:bg-brand-900 disabled:opacity-60 text-white font-medium py-3 rounded-xl transition-colors text-sm"
+            >
+              {loading ? 'Saving…' : 'Add date'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )
 }
 
 // ─── Edit Date Modal ──────────────────────────────────────────────────────────
-function EditDateModal({ token, date, onClose, onSaved }: {
+function EditDateModal({ token, date, subscriberEmail, onClose, onSaved }: {
   token: string
   date: DateEvent
+  subscriberEmail: string
   onClose: () => void
   onSaved: (updated: DateEvent) => void
 }) {
@@ -285,6 +330,7 @@ function EditDateModal({ token, date, onClose, onSaved }: {
           label: label.trim(), type, month, day,
           year: year ? parseInt(year) : null,
           note: note.trim() || null,
+          created_by_email: subscriberEmail,
         }),
       })
       const data = await res.json()
@@ -380,9 +426,17 @@ function EditDateModal({ token, date, onClose, onSaved }: {
 }
 
 // ─── Subscribe Modal ──────────────────────────────────────────────────────────
-function SubscribeModal({ token, onClose }: { token: string; onClose: () => void }) {
+function SubscribeModal({ token, onClose, onSubscribed }: {
+  token: string
+  onClose: () => void
+  onSubscribed: (email: string) => void
+}) {
+  const lockedEmail = typeof window !== 'undefined'
+    ? localStorage.getItem('remify-subscriber-email') ?? ''
+    : ''
+
   const [name, setName]     = useState('')
-  const [email, setEmail]   = useState('')
+  const [email, setEmail]   = useState(lockedEmail)
   const [loading, setLoading] = useState(false)
   const [done, setDone]     = useState(false)
   const [error, setError]   = useState('')
@@ -398,6 +452,10 @@ function SubscribeModal({ token, onClose }: { token: string; onClose: () => void
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to subscribe')
+      // Update localStorage to the confirmed email (handles typo correction)
+      const confirmed = email.trim().toLowerCase()
+      localStorage.setItem('remify-subscriber-email', confirmed)
+      onSubscribed(confirmed)
       setDone(true)
     } catch (err: any) {
       setError(err.message); setLoading(false)
@@ -439,12 +497,24 @@ function SubscribeModal({ token, onClose }: { token: string; onClose: () => void
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Email address</label>
-              <input
-                type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
-                required
-              />
+              {lockedEmail ? (
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={email}
+                    readOnly
+                    className="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-500 cursor-not-allowed"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded">locked</span>
+                </div>
+              ) : (
+                <input
+                  type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-800/30"
+                  required
+                />
+              )}
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
@@ -461,9 +531,11 @@ function SubscribeModal({ token, onClose }: { token: string; onClose: () => void
 }
 
 // ─── Date Card ────────────────────────────────────────────────────────────────
-function DateCard({ event, token, onDeleted, onEdit }: {
+function DateCard({ event, token, subscriberEmail, canEdit, onDeleted, onEdit }: {
   event: DateEvent
   token: string
+  subscriberEmail: string
+  canEdit: boolean
   onDeleted: () => void
   onEdit: () => void
 }) {
@@ -476,7 +548,10 @@ function DateCard({ event, token, onDeleted, onEdit }: {
   async function handleDelete() {
     setConfirmingDelete(false)
     setDeleting(true)
-    await fetch(`/api/dates/${event.id}?token=${token}`, { method: 'DELETE' })
+    await fetch(
+      `/api/dates/${event.id}?token=${token}&created_by_email=${encodeURIComponent(subscriberEmail)}`,
+      { method: 'DELETE' }
+    )
     onDeleted()
   }
 
@@ -504,7 +579,8 @@ function DateCard({ event, token, onDeleted, onEdit }: {
         {event.note && <p className="text-gray-400 text-xs mt-0.5 truncate">{event.note}</p>}
       </div>
 
-      {/* Edit & Delete */}
+      {/* Edit & Delete — only visible to the date's owner */}
+      {canEdit && (
       <div className="flex items-center gap-2 flex-shrink-0">
         {confirmingDelete ? (
           // Inline confirmation
@@ -547,6 +623,7 @@ function DateCard({ event, token, onDeleted, onEdit }: {
           </>
         )}
       </div>
+      )}
     </div>
   )
 }
@@ -569,6 +646,13 @@ export default function GroupPage() {
   const [showVerifiedBanner, setShowVerifiedBanner] = useState(
     searchParams.get('verified') === 'true'
   )
+  const [subscriberEmail, setSubscriberEmail] = useState('')
+
+  // Read subscriber email from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('remify-subscriber-email') ?? ''
+    setSubscriberEmail(stored)
+  }, [])
 
   // Strip ?verified=true from URL so refresh doesn't re-show the banner
   useEffect(() => {
@@ -669,7 +753,7 @@ export default function GroupPage() {
 
         {/* Pending banner */}
         {group?.status === 'pending' && (
-          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
             <p className="text-amber-800 text-sm font-medium">Awaiting email verification — check your inbox to activate.</p>
           </div>
@@ -709,6 +793,8 @@ export default function GroupPage() {
                 key={event.id}
                 event={event}
                 token={token}
+                subscriberEmail={subscriberEmail}
+                canEdit={!!subscriberEmail && event.created_by_email?.toLowerCase() === subscriberEmail.toLowerCase()}
                 onDeleted={fetchData}
                 onEdit={() => setEditingDate(event)}
               />
@@ -721,7 +807,9 @@ export default function GroupPage() {
       {showAdd && (
         <AddDateModal
           token={token}
+          initialEmail={subscriberEmail}
           onClose={() => setShowAdd(false)}
+          onEmailSaved={(email) => setSubscriberEmail(email)}
           onAdded={(newDate) => {
             setShowAdd(false)
             setDates(prev => {
@@ -731,11 +819,18 @@ export default function GroupPage() {
           }}
         />
       )}
-      {showSub && <SubscribeModal token={token} onClose={() => setShowSub(false)} />}
+      {showSub && (
+        <SubscribeModal
+          token={token}
+          onClose={() => setShowSub(false)}
+          onSubscribed={(email) => setSubscriberEmail(email)}
+        />
+      )}
       {editingDate && (
         <EditDateModal
           token={token}
           date={editingDate}
+          subscriberEmail={subscriberEmail}
           onClose={() => setEditingDate(null)}
           onSaved={(updated) => {
             setEditingDate(null)

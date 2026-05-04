@@ -7,6 +7,17 @@ import { Resend } from 'resend'
 
 const FREE_TIER_LIMIT = 1
 
+async function getGroupLimit(db: ReturnType<typeof import('@/lib/supabase').supabaseAdmin>, email: string): Promise<number | null> {
+  const { data } = await db
+    .from('email_tiers')
+    .select('group_limit')
+    .eq('email', email)
+    .single()
+  if (!data) return FREE_TIER_LIMIT        // no tier row → free tier
+  if (data.group_limit === null) return null // null = unlimited
+  return data.group_limit
+}
+
 function buildVerificationEmail(opts: {
   creatorName: string
   groupName: string
@@ -82,7 +93,9 @@ export async function POST(req: Request) {
     const db = supabaseAdmin()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://remify.app'
 
-    // Check free tier limit — active AND pending groups count toward the limit
+    // Check group limit — tier overrides free tier default
+    const groupLimit = await getGroupLimit(db, email)
+
     const { count, error: countErr } = await db
       .from('groups')
       .select('id', { count: 'exact', head: true })
@@ -91,10 +104,10 @@ export async function POST(req: Request) {
 
     if (countErr) throw countErr
 
-    if ((count ?? 0) >= FREE_TIER_LIMIT) {
+    if (groupLimit !== null && (count ?? 0) >= groupLimit) {
       return NextResponse.json(
         {
-          error: `You've reached the free tier limit of ${FREE_TIER_LIMIT} group. Upgrade to create more.`,
+          error: `You've reached the limit of ${groupLimit} group${groupLimit !== 1 ? 's' : ''}. Upgrade to create more.`,
           limitReached: true,
         },
         { status: 403 }
